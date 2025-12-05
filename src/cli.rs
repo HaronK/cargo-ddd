@@ -19,6 +19,9 @@ pub struct Cli {
     /// If true then show diffs for all nested dependencies otherwise only direct ones
     #[arg(short = 'a', long)]
     pub show_all: bool,
+    /// Show human readable output
+    #[arg(short, long)]
+    pub verbose: bool,
     /// List of crates with optional versions to inspect
     #[arg(value_parser = parse_crate_diff_info)]
     pub crates: Vec<CrateDiffRequest>,

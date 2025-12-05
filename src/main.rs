@@ -6,9 +6,12 @@ mod crate_diff_info;
 mod crate_diff_request;
 mod dependency_diff;
 mod diff_report;
+mod field_size;
 mod package_id_info;
 mod package_source;
 mod registry_manager;
+mod simple_report_printer;
+mod verbose_report_printer;
 
 use std::collections::HashMap;
 
@@ -21,6 +24,8 @@ use crate::crate_diff_builder::CrateDiffBuilder;
 use crate::dependency_diff::DependencyDiff;
 use crate::diff_report::DiffReport;
 use crate::registry_manager::RegistryManager;
+use crate::simple_report_printer::print_simple;
+use crate::verbose_report_printer::print_verbose;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -71,11 +76,16 @@ fn main() -> Result<()> {
             let dep_diff: Vec<_> = diffs
                 .into_iter()
                 .map(|diff| {
-                    let (removed_deps, added_deps, updated_deps) = if cli.show_all {
+                    let (mut removed_deps, mut added_deps, mut updated_deps) = if cli.show_all {
                         diff_builder.build_nested_deps(&diff)
                     } else {
                         Default::default()
                     };
+
+                    removed_deps.sort_by(|a, b| a.name.cmp(&b.name));
+                    added_deps.sort_by(|a, b| a.name.cmp(&b.name));
+                    updated_deps.sort_by(|a, b| a.name.cmp(&b.name));
+
                     DependencyDiff {
                         diff,
                         removed_deps,
@@ -90,7 +100,11 @@ fn main() -> Result<()> {
 
     let diff_report = DiffReport { dependency_diffs };
 
-    diff_report.print();
+    if cli.verbose {
+        print_verbose(&diff_report);
+    } else {
+        print_simple(&diff_report);
+    }
 
     Ok(())
 }
