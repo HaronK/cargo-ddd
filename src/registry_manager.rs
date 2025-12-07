@@ -230,12 +230,12 @@ impl RegistryManager {
         output
             .lines()
             .find_map(|l| l.strip_prefix("repository: "))
-            .map(|r| r.into())
+            .map(|r| r.trim_end_matches("/").into())
             .or_else(|| {
                 if let Some(homepage) = output.lines().find_map(|l| l.strip_prefix("homepage: "))
                     && homepage.starts_with("https://github.com/")
                 {
-                    let parts: Vec<_> = homepage.split('/').collect();
+                    let parts: Vec<_> = homepage.trim_end_matches("/").split('/').collect();
                     if parts.len() >= 5 {
                         return Some(parts[..5].join("/"));
                     }
