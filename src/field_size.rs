@@ -54,13 +54,13 @@ fn get_crate_max_len(
         .from_version
         .as_ref()
         .map(|v| format!("{v}").len())
-        .unwrap_or_else(|| "<undefined>".len());
+        .unwrap_or_default();
     *max_from_ver_len = std::cmp::max(*max_from_ver_len, from_len);
 
     let to_len = diff
         .to_version
         .as_ref()
         .map(|v| format!("{v}").len())
-        .unwrap_or_else(|| "<undefined>".len());
+        .unwrap_or_default();
     *max_to_ver_len = std::cmp::max(*max_to_ver_len, to_len);
 }

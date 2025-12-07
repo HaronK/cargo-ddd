@@ -19,6 +19,9 @@ pub struct Cli {
     /// If true then show diffs for all nested dependencies otherwise only direct ones
     #[arg(short = 'a', long)]
     pub show_all: bool,
+    /// Group changes per direct dependency
+    #[arg(short, long)]
+    pub group: bool,
     /// Show human readable output
     #[arg(short, long)]
     pub verbose: bool,

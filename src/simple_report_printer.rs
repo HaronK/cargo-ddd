@@ -1,9 +1,11 @@
+use std::collections::BTreeSet;
+
 use crate::crate_diff_info::CrateDiffInfo;
 use crate::dependency_diff::DependencyDiff;
 use crate::diff_report::DiffReport;
 use crate::field_size::get_dep_max_len;
 
-pub fn print_simple(report: &DiffReport) {
+pub fn print_simple(report: &DiffReport, group: bool) {
     let mut not_first = false;
     for (target_name, diffs) in &report.dependency_diffs {
         if not_first {
@@ -29,13 +31,17 @@ pub fn print_simple(report: &DiffReport) {
             );
         }
 
-        for diff in diffs {
-            print_dep_diff(diff, max_name_len, max_from_ver_len, max_to_ver_len);
+        if group {
+            for diff in diffs {
+                print_grouped_diff(diff, max_name_len, max_from_ver_len, max_to_ver_len);
+            }
+        } else {
+            print_diffs(diffs, max_name_len, max_from_ver_len, max_to_ver_len);
         }
     }
 }
 
-fn print_dep_diff(
+fn print_grouped_diff(
     diff: &DependencyDiff,
     max_name_len: usize,
     max_from_ver_len: usize,
@@ -49,26 +55,62 @@ fn print_dep_diff(
         max_to_ver_len,
     );
 
-    if diff.removed_deps.is_empty() && diff.added_deps.is_empty() && diff.updated_deps.is_empty() {
-        return;
+    for dep in &diff.updated_deps {
+        print_crate_diff(dep, "=", max_name_len, max_from_ver_len, max_to_ver_len);
     }
 
-    if !diff.updated_deps.is_empty() {
-        for dep in &diff.updated_deps {
-            print_crate_diff(dep, "=", max_name_len, max_from_ver_len, max_to_ver_len);
-        }
+    for dep in &diff.added_deps {
+        print_crate_diff(dep, "+", max_name_len, max_from_ver_len, max_to_ver_len);
     }
 
-    if !diff.added_deps.is_empty() {
-        for dep in &diff.added_deps {
-            print_crate_diff(dep, "+", max_name_len, max_from_ver_len, max_to_ver_len);
-        }
+    for dep in &diff.removed_deps {
+        print_crate_diff(dep, "-", max_name_len, max_from_ver_len, max_to_ver_len);
+    }
+}
+
+fn print_diffs(
+    diffs: &[DependencyDiff],
+    max_name_len: usize,
+    max_from_ver_len: usize,
+    max_to_ver_len: usize,
+) {
+    let mut updated_deps = BTreeSet::new();
+    let mut added_deps = BTreeSet::new();
+    let mut removed_deps = BTreeSet::new();
+
+    // print direct dependencies first
+    for diff in diffs {
+        print_crate_diff(
+            &diff.diff,
+            "#",
+            max_name_len,
+            max_from_ver_len,
+            max_to_ver_len,
+        );
+
+        // consolidate nested dependencies
+        diff.updated_deps.iter().for_each(|d| {
+            updated_deps.insert(d.clone());
+        });
+        diff.added_deps.iter().for_each(|d| {
+            added_deps.insert(d.clone());
+        });
+        diff.removed_deps.iter().for_each(|d| {
+            removed_deps.insert(d.clone());
+        });
     }
 
-    if !diff.removed_deps.is_empty() {
-        for dep in &diff.removed_deps {
-            print_crate_diff(dep, "-", max_name_len, max_from_ver_len, max_to_ver_len);
-        }
+    // print nested dependencies
+    for dep in updated_deps {
+        print_crate_diff(&dep, "=", max_name_len, max_from_ver_len, max_to_ver_len);
+    }
+
+    for dep in added_deps {
+        print_crate_diff(&dep, "+", max_name_len, max_from_ver_len, max_to_ver_len);
+    }
+
+    for dep in removed_deps {
+        print_crate_diff(&dep, "-", max_name_len, max_from_ver_len, max_to_ver_len);
     }
 }
 
@@ -83,12 +125,12 @@ fn print_crate_diff(
         .from_version
         .as_ref()
         .map(|v| v.to_string())
-        .unwrap_or("<undefined>".into());
+        .unwrap_or_default();
     let to_version_str = diff
         .to_version
         .as_ref()
         .map(|v| v.to_string())
-        .unwrap_or("<undefined>".into());
+        .unwrap_or_default();
 
     print!(
         "{prefix} {:1$} {from_version_str:2$} {to_version_str:3$} ",
@@ -110,7 +152,7 @@ fn print_crate_diff(
                 let repository = if let Some(repository) = &diff.repository {
                     repository
                 } else {
-                    "<undefined>"
+                    "<unknown-repository>"
                 };
                 println!("{repository}");
             }
@@ -124,8 +166,8 @@ fn print_crate_diff(
             } else {
                 println!(
                     "{} {}",
-                    diff.repository.as_deref().unwrap_or("<undefined>"),
-                    diff.from_hash.as_deref().unwrap_or("<undefined>"),
+                    diff.repository.as_deref().unwrap_or("<unknown-repository>"),
+                    diff.from_hash.as_deref().unwrap_or("<unknown-commit>"),
                 );
             }
         }
@@ -139,8 +181,8 @@ fn print_crate_diff(
         } else {
             println!(
                 "{} {}",
-                diff.repository.as_deref().unwrap_or("<undefined>"),
-                diff.to_hash.as_deref().unwrap_or("<undefined>"),
+                diff.repository.as_deref().unwrap_or("<unknown-repository>"),
+                diff.to_hash.as_deref().unwrap_or("<unknown-commit>"),
             );
         }
     } else {

@@ -1,7 +1,7 @@
 use semver::Version;
 
 /// The crate diff information
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CrateDiffInfo {
     /// Crate name
     pub name: String,

@@ -13,6 +13,7 @@ mod registry_manager;
 mod simple_report_printer;
 mod verbose_report_printer;
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
@@ -21,6 +22,7 @@ use clap::Parser;
 use crate::cargo_meta::CargoMeta;
 use crate::cli::Cli;
 use crate::crate_diff_builder::CrateDiffBuilder;
+use crate::crate_diff_info::CrateDiffInfo;
 use crate::dependency_diff::DependencyDiff;
 use crate::diff_report::DiffReport;
 use crate::registry_manager::RegistryManager;
@@ -82,9 +84,9 @@ fn main() -> Result<()> {
                         Default::default()
                     };
 
-                    removed_deps.sort_by(|a, b| a.name.cmp(&b.name));
-                    added_deps.sort_by(|a, b| a.name.cmp(&b.name));
-                    updated_deps.sort_by(|a, b| a.name.cmp(&b.name));
+                    removed_deps.sort_by(compare_diffs);
+                    added_deps.sort_by(compare_diffs);
+                    updated_deps.sort_by(compare_diffs);
 
                     DependencyDiff {
                         diff,
@@ -101,10 +103,17 @@ fn main() -> Result<()> {
     let diff_report = DiffReport { dependency_diffs };
 
     if cli.verbose {
-        print_verbose(&diff_report);
+        print_verbose(&diff_report, cli.group);
     } else {
-        print_simple(&diff_report);
+        print_simple(&diff_report, cli.group);
     }
 
     Ok(())
+}
+
+fn compare_diffs(a: &CrateDiffInfo, b: &CrateDiffInfo) -> Ordering {
+    a.name
+        .cmp(&b.name)
+        .then_with(|| a.from_version.cmp(&b.from_version))
+        .then_with(|| a.to_version.cmp(&b.to_version))
 }
