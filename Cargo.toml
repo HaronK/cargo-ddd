@@ -5,13 +5,8 @@ edition = "2024"
 authors = ["Oleg Khryptul dark.haron@gmail.com"]
 description = "A cargo subcommand for inspecting what changes brings dependency version update into your project"
 homepage = "https://github.com/HaronK/cargo-ddd"
-keywords = ["utility", "cli", "diff", "statistics"]
-categories = [
-    "command-line-utilities",
-    "development-tools",
-    "inspection",
-    "dependency",
-]
+keywords = ["utility", "cli", "dependency", "diff", "inspection", "statistics"]
+categories = ["command-line-utilities", "development-tools", "security"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/HaronK/cargo-ddd"
