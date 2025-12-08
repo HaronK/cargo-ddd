@@ -143,7 +143,7 @@ impl RegistryManager {
         } else {
             crate_name.into()
         };
-        let output = match cargo_runner.run("info", [&crate_desc]) {
+        let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
             Ok(output) => output,
             Err(err) => {
                 eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
@@ -209,7 +209,7 @@ impl RegistryManager {
         } else {
             crate_name.into()
         };
-        let output = match cargo_runner.run("info", [crate_desc]) {
+        let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
             Ok(output) => output,
             Err(err) => {
                 eprintln!("Cannot get '{crate_name}' crate info. Error: {err}");

@@ -30,7 +30,10 @@ use crate::simple_report_printer::print_simple;
 use crate::verbose_report_printer::print_verbose;
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    // while running 'cargo ddd ...' command 'ddd' is always the first parameter of the crates list, so remove it
+    cli.crates.remove(0);
 
     let need_local_metadata =
         cli.crates.is_empty() || cli.crates.iter().any(|c| c.from_version.is_none());

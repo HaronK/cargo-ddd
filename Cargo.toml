@@ -1,6 +1,6 @@
 [package]
 name = "cargo-ddd"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Oleg Khryptul dark.haron@gmail.com"]
 description = "A cargo subcommand for inspecting what changes brings dependency version update into your project"
