@@ -1,0 +1,112 @@
+# cargo-ddd
+
+**cargo-ddd** (dependency deep diff) is a tool that generates a Git diff links (only GitHub links at the moment) for 2 versions of the crate or for all (or specified) dependencies of the workspace.
+
+It will be usefull to inspect what changes come to the project on dependency version update or just to check chenges between 2 versions of the suspicious crate.
+
+Inspection can be done either manually by clicking on the link or by giving it to the AI chat bot and asking for summary and suspicious changes analysis.
+
+This can help to investigate and prevent supply chain attacks on the crates.io.
+
+## Installation
+
+```bash
+cargo install cargo-ddd
+```
+
+## Usage
+
+To generate diff links for dependency updates in the current workspace run:
+```bash
+cargo ddd
+```
+
+Generating diff links for direct and all nested dependency updates:
+```bash
+cargo ddd -a
+```
+
+If workspace contains several dependencies that have to be updated then above command will generate a long list of changes. You can ask to generate diffs only for specific dependency:
+```bash
+cargo ddd -a serde
+```
+
+To see differences between current and specific (not the latest) dependency version run:
+```bash
+cargo ddd -a serde@1.0.225
+```
+or
+```bash
+cargo ddd -a serde@-1.0.225
+```
+
+To see diffs between 2 versions of any crate (don't have to be dependency of the current workspace):
+```bash
+cargo ddd -a serde@1.0.218-1.0.225
+```
+
+By default output shows direct dependencies first and consolidated dependencies after it. To group changes per direct dependency run:
+```bash
+cargo ddd -a -g serde
+```
+
+To see more detailed output run:
+```bash
+cargo ddd -v serde
+```
+
+Example:
+
+```bash
+cargo ddd serde@1.0.216-1.0.225
+```
+Output:
+```
+# serde         1.0.216 1.0.225 https://github.com/serde-rs/serde/compare/ad8dd41...1d7899d
+= proc-macro2   1.0.92  1.0.101 https://github.com/dtolnay/proc-macro2/compare/acc7d36...d3188ea
+= quote         1.0.37  1.0.40  https://github.com/dtolnay/quote/compare/b1ebffa...ab1e92c
+= syn           2.0.90  2.0.106 https://github.com/dtolnay/syn/compare/ac5b41c...0e4bc64
+= unicode-ident 1.0.14  1.0.19  https://github.com/dtolnay/unicode-ident/compare/404f1e8...dc018bf
++ serde_derive          1.0.225 https://github.com/serde-rs/serde/commit/1d7899d671c6f6155b63a39fa6001c9c48260821
+```
+
+```bash
+cargo ddd -a web-sys@0.3.72-0.3.77
+```
+Output:
+```
+# web-sys                    0.3.72  0.3.77  https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys/compare/3a8da7c...2405ec2
+= bumpalo                    3.19.0  3.16.0  https://github.com/fitzgen/bumpalo/compare/573ed78...4eeab88
+= cfg-if                     1.0.4   1.0.0   https://github.com/rust-lang/cfg-if/compare/3510ca6...e60fa1e
+= memchr                     2.7.6   2.7.4   https://github.com/BurntSushi/memchr/compare/9ba486e...8ad3395
+= once_cell                  1.21.3  1.20.2  https://github.com/matklad/once_cell/compare/29e3d93...4fbd4a5
+= proc-macro2                1.0.103 1.0.93  https://github.com/dtolnay/proc-macro2/compare/d1bf13a...83519e8
+= quote                      1.0.42  1.0.38  https://github.com/dtolnay/quote/compare/bb9e7a4...0245506
+= slab                       0.4.11  0.4.9   https://github.com/tokio-rs/slab/compare/2e5779f...b709dcf
+= syn                        2.0.111 2.0.96  https://github.com/dtolnay/syn/compare/4e50867...d1cbce8
+= unicode-ident              1.0.22  1.0.14  https://github.com/dtolnay/unicode-ident/compare/10d5e53...404f1e8
+= wasm-bindgen-macro         0.2.106 0.2.100 https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro/compare/11831fb...2405ec2
+= wasm-bindgen-macro-support 0.2.106 0.2.100 https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/macro-support/compare/11831fb...2405ec2
+= wasm-bindgen-shared        0.2.106 0.2.100 https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared/compare/11831fb...2405ec2
++ autocfg                            1.4.0   https://github.com/cuviper/autocfg/commit/d07df6624a4573803a29397c0ccf636aa0b3d153
++ log                                0.4.22  https://github.com/rust-lang/log/commit/d5ba2cfee9b3b4ca1fcad911b7f59dc79eeee022
++ wasm-bindgen-backend               0.2.100 https://github.com/rustwasm/wasm-bindgen/tree/master/crates/backend/commit/2405ec2b4bcd1cc4e3bd1562c373e9d5f0cbdcb5
+- rustversion                1.0.22          https://github.com/dtolnay/rustversion/commit/9e86f839b6a34a7d9398f243d88bf400b7fa1f7c
+```
+Output prefixes:
+- **:** - workspace target name
+- **#** - direct dependency/crate
+- **=** - updated nested dependency
+- **+** - added nested dependency
+- **-** - removed nested dependency
+
+
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option.

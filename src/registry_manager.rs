@@ -240,7 +240,7 @@ impl RegistryManager {
                         return Some(parts[..5].join("/"));
                     }
                 }
-                // TODO: extract repository from ther sources
+                // TODO: extract repository from the other sources
                 None
             })
     }
