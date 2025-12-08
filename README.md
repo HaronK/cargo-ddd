@@ -100,7 +100,8 @@ Output prefixes:
 - **+** - added nested dependency
 - **-** - removed nested dependency
 
-
+> [!WARNING]
+> This is an initial version that may not always extract all the necessary information and generate correct output, though crate name and versions are always correct.
 
 ## License
 
