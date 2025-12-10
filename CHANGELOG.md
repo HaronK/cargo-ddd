@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+Added:
+- Simple and verbose report outputs
+- Changes grouping
+
+Fixed:
+- Remove double '/' in the repository name
+- Disable colored output of the 'cargo info' command
+
 ## 0.1.0
 
 Initial release.
