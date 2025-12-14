@@ -147,7 +147,7 @@ impl RegistryManager {
             Ok(output) => output,
             Err(err) => {
                 eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
-                return (None, None);
+                return (version.cloned(), None);
             }
         };
 
@@ -194,6 +194,64 @@ impl RegistryManager {
         }
 
         (version, repository)
+    }
+
+    /// Extract crate version from the output of the 'cargo info' command.
+    /// This will automatically download crate and its sources into the local cargo registry.
+    pub fn get_crate_version(
+        &self,
+        crate_name: &str,
+        version: Option<&Version>,
+    ) -> Option<Version> {
+        let cargo_runner = CargoRunner::new(None);
+        let crate_desc = if let Some(version) = version {
+            format!("{crate_name}@{version}")
+        } else {
+            crate_name.into()
+        };
+        let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
+            Ok(output) => output,
+            Err(err) => {
+                eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
+                return version.cloned();
+            }
+        };
+
+        output.lines().find_map(|l| {
+            l.strip_prefix("version: ").and_then(|version_desc| {
+                let version_str = if let Some((cur_version, latest_version)) =
+                    version_desc.split_once(" (latest ")
+                {
+                    let version_str = if version.is_some() {
+                        cur_version
+                    } else {
+                        &latest_version[..latest_version.len() - 1]
+                    };
+                    let cargo_runner = CargoRunner::new(None);
+                    // load crate version into the local registry if it's not yet there
+                    if let Err(err) =
+                        cargo_runner.run("info", [format!("{crate_name}@{version_str}")])
+                    {
+                        eprintln!(
+                            "'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
+                        );
+                    }
+                    version_str
+                } else {
+                    version_desc
+                };
+
+                match Version::parse(version_str) {
+                    Ok(version) => Some(version),
+                    Err(err) => {
+                        eprintln!(
+                            "Cannot parse '{crate_name}' version '{version_str:?}'. Error: {err}"
+                        );
+                        version.cloned()
+                    }
+                }
+            })
+        })
     }
 
     /// Extract crate repository from the output of the 'cargo info' command.

@@ -26,14 +26,17 @@ use crate::crate_diff_info::CrateDiffInfo;
 use crate::dependency_diff::DependencyDiff;
 use crate::diff_report::DiffReport;
 use crate::registry_manager::RegistryManager;
-use crate::simple_report_printer::print_simple;
-use crate::verbose_report_printer::print_verbose;
+use crate::simple_report_printer::SimpleReportPrinter;
+use crate::verbose_report_printer::VerboseReportPrinter;
 
 fn main() -> Result<()> {
     let mut cli = Cli::parse();
 
-    // while running 'cargo ddd ...' command 'ddd' is always the first parameter of the crates list, so remove it
-    cli.crates.remove(0);
+    // While running 'cargo ddd ...' command 'ddd' is always the first parameter of the crates list, so remove it
+    // To run locally to check diff of the 'ddd' crate run: `cargo-ddd ddd ddd`
+    if !cli.crates.is_empty() && cli.crates[0].crate_name == "ddd" {
+        cli.crates.remove(0);
+    }
 
     let need_local_metadata =
         cli.crates.is_empty() || cli.crates.iter().any(|c| c.from_version.is_none());
@@ -45,7 +48,7 @@ fn main() -> Result<()> {
 
     let registry_path = cargo_meta.as_ref().and_then(|cm| cm.registry_path());
     let registry_manager = RegistryManager::new(registry_path)?;
-    let diff_builder = CrateDiffBuilder::new(registry_manager);
+    let diff_builder = CrateDiffBuilder::new(registry_manager, cli.diff_rs && !cli.verbose);
 
     let target_version_diffs = if cli.crates.is_empty() {
         // if no crates are provided in cli, use local crate dependencies that need an update
@@ -106,9 +109,9 @@ fn main() -> Result<()> {
     let diff_report = DiffReport { dependency_diffs };
 
     if cli.verbose {
-        print_verbose(&diff_report, cli.group);
+        VerboseReportPrinter::new(cli.group, cli.diff_rs).print(&diff_report);
     } else {
-        print_simple(&diff_report, cli.group);
+        SimpleReportPrinter::new(cli.group, cli.diff_rs).print(&diff_report);
     }
 
     Ok(())

@@ -11,11 +11,15 @@ use crate::registry_manager::RegistryManager;
 /// Generates diff information for the crate 2 versions
 pub struct CrateDiffBuilder {
     registry_manager: RegistryManager,
+    diff_rs: bool,
 }
 
 impl CrateDiffBuilder {
-    pub fn new(registry_manager: RegistryManager) -> Self {
-        Self { registry_manager }
+    pub fn new(registry_manager: RegistryManager, diff_rs: bool) -> Self {
+        Self {
+            registry_manager,
+            diff_rs,
+        }
     }
 
     /// Build diffs for the dependencies of the current crate that require update.
@@ -31,7 +35,21 @@ impl CrateDiffBuilder {
                 let (latest_version, repository) =
                     self.registry_manager.get_crate_info(&dep.name, None);
 
-                if let Some(latest_version) = latest_version {
+                if self.diff_rs {
+                    if let Some(latest_version) = &latest_version
+                        && dep.version == *latest_version
+                    {
+                        continue;
+                    }
+                    diff_info.push(CrateDiffInfo {
+                        name: dep.name,
+                        from_version: Some(dep.version),
+                        from_hash: None,
+                        to_version: latest_version,
+                        to_hash: None,
+                        repository: None,
+                    });
+                } else if let Some(latest_version) = latest_version {
                     if dep.version != latest_version {
                         let from_hash = self
                             .registry_manager
@@ -79,38 +97,39 @@ impl CrateDiffBuilder {
     ) -> HashMap<String, Vec<CrateDiffInfo>> {
         let mut target_version_diffs = HashMap::new();
         for pkg in crates {
-            let from_versions = match &pkg.from_version {
-                Some(version) => HashMap::from([("".to_string(), version.clone())]),
+            let mut from_versions = match &pkg.from_version {
+                Some(version) => HashMap::from([("".to_string(), Some(version.clone()))]),
                 None => {
                     // Take crate versions from Cargo.toml
                     cargo_meta
                         .get_dependency_info(&pkg.crate_name)
                         .into_iter()
-                        .map(|(name, info)| (name, info.version))
+                        .map(|(name, info)| (name, Some(info.version)))
                         .collect()
                 }
             };
 
-            let (to_version, repository) = self
-                .registry_manager
-                .get_crate_info(&pkg.crate_name, pkg.to_version.as_ref());
-
-            if !from_versions.is_empty() {
-                for (target_name, from_version) in from_versions {
-                    self.add_diff(
-                        &target_name,
-                        &pkg.crate_name,
-                        Some(from_version),
-                        to_version.clone(),
-                        repository.clone(),
-                        &mut target_version_diffs,
-                    );
-                }
-            } else {
-                self.add_diff(
-                    "", // explicit/non-dependency crate
-                    &pkg.crate_name,
+            let (to_version, repository) = if self.diff_rs {
+                (
+                    self.registry_manager
+                        .get_crate_version(&pkg.crate_name, pkg.to_version.as_ref()),
                     None,
+                )
+            } else {
+                self.registry_manager
+                    .get_crate_info(&pkg.crate_name, pkg.to_version.as_ref())
+            };
+
+            if from_versions.is_empty() {
+                // explicit/non-dependency crate
+                from_versions.insert("".into(), None);
+            }
+
+            for (target_name, from_version) in from_versions {
+                self.add_diff(
+                    &target_name,
+                    &pkg.crate_name,
+                    from_version,
                     to_version.clone(),
                     repository.clone(),
                     &mut target_version_diffs,
@@ -129,9 +148,16 @@ impl CrateDiffBuilder {
     ) -> HashMap<String, Vec<CrateDiffInfo>> {
         let mut target_version_diffs = HashMap::new();
         for pkg in crates {
-            let (to_version, repository) = self
-                .registry_manager
-                .get_crate_info(&pkg.crate_name, pkg.to_version.as_ref());
+            let (to_version, repository) = if self.diff_rs {
+                (
+                    self.registry_manager
+                        .get_crate_version(&pkg.crate_name, pkg.to_version.as_ref()),
+                    None,
+                )
+            } else {
+                self.registry_manager
+                    .get_crate_info(&pkg.crate_name, pkg.to_version.as_ref())
+            };
 
             self.add_diff(
                 "", // explicit/non-dependency crate
@@ -170,19 +196,28 @@ impl CrateDiffBuilder {
                         None
                     }
                 });
+            let repository = if !self.diff_rs {
+                self.registry_manager
+                    .get_crate_repository(&from_pkg.name, Some(&from_pkg.version))
+            } else {
+                None
+            };
+
             if let Some(index) = pkg_idx {
                 let to_pkg = to_nested_packages.remove(index);
 
                 if from_pkg.version != to_pkg.version {
-                    let from_hash = self
-                        .registry_manager
-                        .get_crate_hash(&from_pkg.name, &from_pkg.version);
-                    let to_hash = self
-                        .registry_manager
-                        .get_crate_hash(&to_pkg.name, &to_pkg.version);
-                    let repository = self
-                        .registry_manager
-                        .get_crate_repository(&from_pkg.name, Some(&from_pkg.version));
+                    let (from_hash, to_hash) = if !self.diff_rs {
+                        let from_hash = self
+                            .registry_manager
+                            .get_crate_hash(&from_pkg.name, &from_pkg.version);
+                        let to_hash = self
+                            .registry_manager
+                            .get_crate_hash(&to_pkg.name, &to_pkg.version);
+                        (from_hash, to_hash)
+                    } else {
+                        (None, None)
+                    };
 
                     updated_deps.push(CrateDiffInfo {
                         name: from_pkg.name,
@@ -194,12 +229,12 @@ impl CrateDiffBuilder {
                     });
                 }
             } else {
-                let from_hash = self
-                    .registry_manager
-                    .get_crate_hash(&from_pkg.name, &from_pkg.version);
-                let repository = self
-                    .registry_manager
-                    .get_crate_repository(&from_pkg.name, Some(&from_pkg.version));
+                let from_hash = if !self.diff_rs {
+                    self.registry_manager
+                        .get_crate_hash(&from_pkg.name, &from_pkg.version)
+                } else {
+                    None
+                };
 
                 removed_deps.push(CrateDiffInfo {
                     name: from_pkg.name,
@@ -214,24 +249,27 @@ impl CrateDiffBuilder {
 
         // conver remaining to_nested_packages into the added changes
         let mut added_deps = vec![];
-        if !to_nested_packages.is_empty() {
-            for dep in to_nested_packages {
-                let repository = self
-                    .registry_manager
-                    .get_crate_repository(&dep.name, Some(&dep.version));
+        for dep in to_nested_packages {
+            let (to_hash, repository) = if !self.diff_rs {
                 let to_hash = self
                     .registry_manager
                     .get_crate_hash(&dep.name, &dep.version);
+                let repository = self
+                    .registry_manager
+                    .get_crate_repository(&dep.name, Some(&dep.version));
+                (to_hash, repository)
+            } else {
+                (None, None)
+            };
 
-                added_deps.push(CrateDiffInfo {
-                    name: dep.name,
-                    from_version: None,
-                    from_hash: None,
-                    to_version: Some(dep.version),
-                    to_hash,
-                    repository,
-                });
-            }
+            added_deps.push(CrateDiffInfo {
+                name: dep.name,
+                from_version: None,
+                from_hash: None,
+                to_version: Some(dep.version),
+                to_hash,
+                repository,
+            });
         }
 
         (removed_deps, added_deps, updated_deps)
@@ -272,12 +310,17 @@ impl CrateDiffBuilder {
             return;
         }
 
-        let from_hash = from_version
-            .as_ref()
-            .and_then(|version| self.registry_manager.get_crate_hash(crate_name, version));
-        let to_hash = to_version
-            .as_ref()
-            .and_then(|version| self.registry_manager.get_crate_hash(crate_name, version));
+        let (from_hash, to_hash, repository) = if !self.diff_rs {
+            let from_hash = from_version
+                .as_ref()
+                .and_then(|version| self.registry_manager.get_crate_hash(crate_name, version));
+            let to_hash = to_version
+                .as_ref()
+                .and_then(|version| self.registry_manager.get_crate_hash(crate_name, version));
+            (from_hash, to_hash, repository)
+        } else {
+            (None, None, None)
+        };
         let deps = target_version_diffs.entry(target_name.into()).or_default();
 
         deps.push(CrateDiffInfo {

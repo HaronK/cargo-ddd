@@ -25,6 +25,9 @@ pub struct Cli {
     /// Show human readable output
     #[arg(short, long)]
     pub verbose: bool,
+    /// Generate diff links for diff.rs site instead of original one
+    #[arg(short, long)]
+    pub diff_rs: bool,
     /// List of crates with optional versions to inspect
     #[arg(value_parser = parse_crate_diff_info)]
     pub crates: Vec<CrateDiffRequest>,
