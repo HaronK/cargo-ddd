@@ -1,5 +1,8 @@
 # cargo-ddd
 
+[![Crates.io](https://img.shields.io/crates/v/cargo-ddd.svg)](https://crates.io/crates/cargo-ddd)
+[![API Docs](https://docs.rs/cargo-ddd/badge.svg)](https://docs.rs/cargo-ddd)
+
 **cargo-ddd** (dependency deep diff) is a tool that generates a Git diff links (only GitHub links at the moment) for 2 versions of the crate or for all (or specified) dependencies of the workspace.
 
 It will be usefull to inspect what changes come to the project on dependency version update or just to check chenges between 2 versions of the suspicious crate.
