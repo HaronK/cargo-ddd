@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+Fixed:
+- dependency status link
+
 ## 0.2.0
 
 Added:
