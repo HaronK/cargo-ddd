@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+Added:
+- Generation of diff.rs links
+
+Fixed:
+- Verbose report output. Shows more details for added and removed crates
+- Sort workspace targets
+
 ## 0.1.1
 
 Added:
