@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use indexmap::IndexMap;
 use semver::Version;
 
 use crate::cargo_meta::CargoMeta;
@@ -25,8 +24,8 @@ impl CrateDiffBuilder {
     /// Build diffs for the dependencies of the current crate that require update.
     /// Called when no crates are provided in the command line:
     ///   ddd
-    pub fn build_from_crate(&self, cargo_meta: &CargoMeta) -> HashMap<String, Vec<CrateDiffInfo>> {
-        let mut target_version_diffs = HashMap::new();
+    pub fn build_from_crate(&self, cargo_meta: &CargoMeta) -> IndexMap<String, Vec<CrateDiffInfo>> {
+        let mut target_version_diffs = IndexMap::new();
         let dependencies = cargo_meta.workspace_member_dependencies();
 
         for (target_name, deps) in dependencies {
@@ -94,11 +93,11 @@ impl CrateDiffBuilder {
         &self,
         crates: &[CrateDiffRequest],
         cargo_meta: &CargoMeta,
-    ) -> HashMap<String, Vec<CrateDiffInfo>> {
-        let mut target_version_diffs = HashMap::new();
+    ) -> IndexMap<String, Vec<CrateDiffInfo>> {
+        let mut target_version_diffs = IndexMap::new();
         for pkg in crates {
             let mut from_versions = match &pkg.from_version {
-                Some(version) => HashMap::from([("".to_string(), Some(version.clone()))]),
+                Some(version) => IndexMap::from([("".to_string(), Some(version.clone()))]),
                 None => {
                     // Take crate versions from Cargo.toml
                     cargo_meta
@@ -145,8 +144,8 @@ impl CrateDiffBuilder {
     pub fn build_from_crates(
         &self,
         crates: &[CrateDiffRequest],
-    ) -> HashMap<String, Vec<CrateDiffInfo>> {
-        let mut target_version_diffs = HashMap::new();
+    ) -> IndexMap<String, Vec<CrateDiffInfo>> {
+        let mut target_version_diffs = IndexMap::new();
         for pkg in crates {
             let (to_version, repository) = if self.diff_rs {
                 (
@@ -301,7 +300,7 @@ impl CrateDiffBuilder {
         from_version: Option<Version>,
         to_version: Option<Version>,
         repository: Option<String>,
-        target_version_diffs: &mut HashMap<String, Vec<CrateDiffInfo>>,
+        target_version_diffs: &mut IndexMap<String, Vec<CrateDiffInfo>>,
     ) {
         if let Some(from_version) = &from_version
             && let Some(to_version) = &to_version

@@ -14,10 +14,10 @@ mod simple_report_printer;
 mod verbose_report_printer;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
 use clap::Parser;
+use indexmap::IndexMap;
 
 use crate::cargo_meta::CargoMeta;
 use crate::cli::Cli;
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     let registry_manager = RegistryManager::new(registry_path)?;
     let diff_builder = CrateDiffBuilder::new(registry_manager, cli.diff_rs && !cli.verbose);
 
-    let target_version_diffs = if cli.crates.is_empty() {
+    let mut target_version_diffs = if cli.crates.is_empty() {
         // if no crates are provided in cli, use local crate dependencies that need an update
         let Some(cargo_meta) = cargo_meta else {
             return Err(anyhow!(
@@ -77,8 +77,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    target_version_diffs.sort_keys();
+
     // generate diff links
-    let dependency_diffs: HashMap<_, _> = target_version_diffs
+    let dependency_diffs: IndexMap<_, _> = target_version_diffs
         .into_iter()
         .map(|(target_name, diffs)| {
             let dep_diff: Vec<_> = diffs
