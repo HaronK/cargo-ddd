@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+Fixed:
+- Properly extract crate version
+
 ## 0.2.1
 
 Fixed:
