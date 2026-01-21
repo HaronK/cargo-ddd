@@ -5,13 +5,16 @@ use anyhow::{Result, anyhow};
 use semver::Version;
 
 use crate::cargo_runner::CargoRunner;
+use crate::crate_info::CrateInfo;
+use crate::package_id_info::PackageIdInfo;
+use crate::package_source::PackageSource;
 
 /// Manager for the local cargo registry crate sorces
 pub struct RegistryManager {
     /// Path to the current user cargo registry source folder
     registry_path: PathBuf,
     /// Crates info cache
-    crate_info_cache: HashMap<String, (Option<Version>, Option<String>)>,
+    crate_info_cache: HashMap<String, CrateInfo>,
 }
 
 impl RegistryManager {
@@ -80,6 +83,16 @@ impl RegistryManager {
     }
 
     /// Crate version commit hash from the '.cargo_vcs_info.json' file in the crate source folder in the loacl registry
+    pub fn get_pkg_hash(&self, pkg_info: &PackageIdInfo) -> Option<String> {
+        if pkg_info.source != PackageSource::Git {
+            self.get_crate_hash(&pkg_info.name, &pkg_info.version)
+        } else {
+            eprintln!("[WARN] Cannot get hash for Git crate: {}", pkg_info.name);
+            None
+        }
+    }
+
+    /// Crate version commit hash from the '.cargo_vcs_info.json' file in the crate source folder in the loacl registry
     pub fn get_crate_hash(&self, crate_name: &str, version: &Version) -> Option<String> {
         let cargo_runner = CargoRunner::new(None);
 
@@ -139,50 +152,13 @@ impl RegistryManager {
 
     /// Extract crate version and repository from the output of the 'cargo info' command.
     /// This will automatically download crate and its sources into the local cargo registry.
-    pub fn get_crate_info(
-        &mut self,
-        crate_name: &str,
-        version: Option<&Version>,
-    ) -> (Option<Version>, Option<String>) {
+    pub fn get_crate_info(&mut self, crate_name: &str, version: Option<&Version>) -> CrateInfo {
         let crate_desc = Self::get_crate_desc(crate_name, version);
 
-        if let Some(info) = self.crate_info_cache.get(&crate_desc) {
-            return info.clone();
-        }
-
-        self.extract_crate_info(crate_name, crate_desc, version)
-    }
-
-    /// Extract crate version from the output of the 'cargo info' command.
-    /// This will automatically download crate and its sources into the local cargo registry.
-    pub fn get_crate_version(
-        &mut self,
-        crate_name: &str,
-        version: Option<&Version>,
-    ) -> Option<Version> {
-        let crate_desc = Self::get_crate_desc(crate_name, version);
-
-        if let Some((version, _)) = self.crate_info_cache.get(&crate_desc) {
-            return version.clone();
-        }
-
-        self.extract_crate_info(crate_name, crate_desc, version).0
-    }
-
-    /// Extract crate repository from the output of the 'cargo info' command.
-    /// This will automatically download crate and its sources into the local cargo registry.
-    pub fn get_crate_repository(
-        &mut self,
-        crate_name: &str,
-        version: Option<&Version>,
-    ) -> Option<String> {
-        let crate_desc = Self::get_crate_desc(crate_name, version);
-
-        if let Some((_, repository)) = self.crate_info_cache.get(&crate_desc) {
-            return repository.clone();
-        }
-
-        self.extract_crate_info(crate_name, crate_desc, version).1
+        self.crate_info_cache
+            .entry(crate_desc.clone())
+            .or_insert_with(|| Self::extract_crate_info(crate_name, crate_desc, version))
+            .clone()
     }
 
     fn get_crate_desc(crate_name: &str, version: Option<&Version>) -> String {
@@ -194,17 +170,19 @@ impl RegistryManager {
     }
 
     fn extract_crate_info(
-        &mut self,
         crate_name: &str,
         crate_desc: String,
         version: Option<&Version>,
-    ) -> (Option<Version>, Option<String>) {
+    ) -> CrateInfo {
         let cargo_runner = CargoRunner::new(None);
         let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
             Ok(output) => output,
             Err(err) => {
                 eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
-                return (version.cloned(), None);
+                return CrateInfo {
+                    version: version.cloned(),
+                    repository: None,
+                };
             }
         };
 
@@ -215,10 +193,10 @@ impl RegistryManager {
             eprintln!("Cannot get repository of the '{crate_name}' crate:\n{output}");
         }
 
-        self.crate_info_cache
-            .insert(crate_desc, (version.clone(), repository.clone()));
-
-        (version, repository)
+        CrateInfo {
+            version,
+            repository,
+        }
     }
 
     fn extract_version(crate_name: &str, output: &str, latest: bool) -> Option<Version> {

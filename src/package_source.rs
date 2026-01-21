@@ -5,17 +5,16 @@ pub enum PackageSource {
     Registry,
     /// Local crate, i.e. workspace member
     Path,
+    /// Crate from the Git repository
+    Git,
     /// Unsupported source
     Unsupported(String),
 }
 
 impl std::fmt::Display for PackageSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Registry => write!(f, "registry"),
-            Self::Path => write!(f, "path"),
-            Self::Unsupported(source) => write!(f, "{source}"),
-        }
+        let source = self.as_str();
+        write!(f, "{source}")
     }
 }
 
@@ -24,6 +23,7 @@ impl PackageSource {
         match self {
             Self::Registry => "registry",
             Self::Path => "path",
+            Self::Git => "git",
             Self::Unsupported(source) => source,
         }
     }
@@ -34,6 +34,7 @@ impl From<&str> for PackageSource {
         match value {
             "registry" => Self::Registry,
             "path" => Self::Path,
+            "git" => Self::Git,
             _ => Self::Unsupported(value.into()),
         }
     }

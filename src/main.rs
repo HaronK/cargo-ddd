@@ -4,6 +4,7 @@ mod cli;
 mod crate_diff_builder;
 mod crate_diff_info;
 mod crate_diff_request;
+mod crate_info;
 mod dependency_diff;
 mod diff_report;
 mod field_size;

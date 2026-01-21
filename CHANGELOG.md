@@ -6,6 +6,7 @@ Fixed:
 - Properly extract crate version
 - Cache crates info
 - Remove branch from git repositories name
+- Do not retrieve a hash of the Git crates
 
 ## 0.2.1
 

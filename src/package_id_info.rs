@@ -36,7 +36,8 @@ impl PackageIdInfo {
             (name, tail)
         };
         // Git repositories can have branch part so we remove it. Example: tauri-plugin-trafficlights-positioner?branch=v2
-        let name = if source == "git"
+        let source = source.into();
+        let name = if source == PackageSource::Git
             && let Some((name, _)) = name.split_once('?')
         {
             name
@@ -52,7 +53,7 @@ impl PackageIdInfo {
         };
 
         Some(PackageIdInfo {
-            source: source.into(),
+            source,
             path: path.into(),
             name: name.into(),
             version,
