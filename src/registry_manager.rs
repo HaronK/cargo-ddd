@@ -50,7 +50,7 @@ impl RegistryManager {
 
             if meta.is_dir() {
                 let Ok(file_name) = entry.file_name().into_string() else {
-                    eprintln!("Cannot read file name: {:?}", entry.file_name());
+                    eprintln!("[ERROR] Cannot read file name: {:?}", entry.file_name());
                     continue;
                 };
                 // By default we are using sources from the crates.io registry
@@ -65,7 +65,7 @@ impl RegistryManager {
             [first, remaider @ ..] => {
                 if !remaider.is_empty() {
                     eprintln!(
-                        "[WARN] There are {} registry sources. First fill be used: {buf:#?}",
+                        "[WARN] There are {} registry sources. First will be used: {buf:#?}",
                         buf.len()
                     );
                 }
@@ -98,7 +98,7 @@ impl RegistryManager {
 
         // Run 'cargo info' for the specific version of the crate to guarantee it's in the local registry
         if let Err(err) = cargo_runner.run("info", [format!("{crate_name}@{version}")]) {
-            eprintln!("Cannot get '{crate_name}' crate info. Error: {err}");
+            eprintln!("[ERROR] Cannot get '{crate_name}' crate info. Error: {err}");
             return None;
         }
 
@@ -111,7 +111,7 @@ impl RegistryManager {
             Ok(file_exists) => {
                 if !file_exists {
                     eprintln!(
-                        "Crate doesn't contain .cargo_vcs_info.json. Commit hash is not available for: {crate_name}@{version}"
+                        "[WARN] Crate doesn't contain .cargo_vcs_info.json. Commit hash is not available for: {crate_name}@{version}"
                     );
                     return None;
                 }
@@ -119,7 +119,7 @@ impl RegistryManager {
             Err(err) => {
                 // TODO: extract commit hash from the other sources
                 eprintln!(
-                    "Cannot access .cargo_vcs_info.json file of the '{crate_name}@{version}' repository. Error: {err}"
+                    "[ERROR] Cannot access .cargo_vcs_info.json file of the '{crate_name}@{version}' repository. Error: {err}"
                 );
                 return None;
             }
@@ -130,7 +130,7 @@ impl RegistryManager {
             Err(err) => {
                 // TODO: extract commit hash from the other sources
                 eprintln!(
-                    "Cannot read '{crate_name}@{version}' crate commit hash from the '{vcs_info_path:?}' file. Error: {err}"
+                    "[WARN] Cannot read '{crate_name}@{version}' crate commit hash from the '{vcs_info_path:?}' file. Error: {err}"
                 );
                 return None;
             }
@@ -145,7 +145,7 @@ impl RegistryManager {
             Some(hash[..hash.len() - 1].into())
         } else {
             // TODO: extract commit hash from the other sources
-            eprintln!("Cannot get hash of the '{crate_name}' crate:\n{hash_data}");
+            eprintln!("[WARN] Cannot get hash of the '{crate_name}' crate:\n{hash_data}");
             None
         }
     }
@@ -178,7 +178,7 @@ impl RegistryManager {
         let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
             Ok(output) => output,
             Err(err) => {
-                eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
+                eprintln!("[ERROR] 'cargo info {crate_desc}' command failed. Error: {err}");
                 return CrateInfo {
                     version: version.cloned(),
                     repository: None,
@@ -190,7 +190,7 @@ impl RegistryManager {
         let repository = Self::repository_from_output(&output);
         if repository.is_none() {
             // TODO: Get repository in other way
-            eprintln!("Cannot get repository of the '{crate_name}' crate:\n{output}");
+            eprintln!("[ERROR] Cannot get repository of the '{crate_name}' crate:\n{output}");
         }
 
         CrateInfo {
@@ -221,7 +221,7 @@ impl RegistryManager {
                 if let Err(err) = cargo_runner.run("info", [format!("{crate_name}@{version_str}")])
                 {
                     eprintln!(
-                        "'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
+                        "[ERROR] 'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
                     );
                 }
 
@@ -229,7 +229,7 @@ impl RegistryManager {
                     Ok(version) => Some(version),
                     Err(err) => {
                         eprintln!(
-                            "Cannot parse '{crate_name}' version '{version_str}'. Error: {err}"
+                            "[WARN] Cannot parse '{crate_name}' version '{version_str}'. Error: {err}"
                         );
                         None
                     }

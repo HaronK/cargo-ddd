@@ -19,18 +19,18 @@ pub struct PackageIdInfo {
 impl PackageIdInfo {
     pub fn from_package_id(pkg_id: &PackageId) -> Option<Self> {
         let Some((source, tail)) = pkg_id.repr.split_once('+') else {
-            eprintln!("Cannot extract source: {pkg_id}");
+            eprintln!("[ERROR] Cannot extract source: {pkg_id}");
             return None;
         };
         let Some((path, tail)) = tail.split_once('#') else {
-            eprintln!("Cannot extract path: {pkg_id}");
+            eprintln!("[ERROR] Cannot extract path: {pkg_id}");
             return None;
         };
         let (name, version) = if let Some(name_version) = tail.split_once('@') {
             name_version
         } else {
             let Some((_, name)) = path.rsplit_once("/") else {
-                eprintln!("Cannot extract package name from: {path}");
+                eprintln!("[ERROR] Cannot extract package name: {path}");
                 return None;
             };
             (name, tail)
@@ -47,7 +47,7 @@ impl PackageIdInfo {
         let version = match Version::parse(version) {
             anyhow::Result::Ok(version) => version,
             Err(err) => {
-                eprintln!("Cannot parse version: {version}. Error: {err}");
+                eprintln!("[ERROR] Cannot parse version: {version}. Error: {err}");
                 return None;
             }
         };
@@ -62,7 +62,7 @@ impl PackageIdInfo {
 
     pub fn parse_source(pkg_id: &PackageId) -> Option<PackageSource> {
         let Some((source, _tail)) = pkg_id.repr.split_once('+') else {
-            eprintln!("Cannot extract source: {pkg_id}");
+            eprintln!("[ERROR] Cannot extract source: {pkg_id}");
             return None;
         };
         Some(source.into())

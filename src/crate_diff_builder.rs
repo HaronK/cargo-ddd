@@ -265,7 +265,9 @@ impl CrateDiffBuilder {
         let cargo_meta = match CargoMeta::new(&from_registry_path) {
             Ok(cargo_meta) => cargo_meta,
             Err(err) => {
-                eprintln!("Cannot get cargo metadata for '{crate_name}' crate. Error: {err}");
+                eprintln!(
+                    "[ERROR] Cannot get cargo metadata for '{crate_name}' crate. Error: {err}"
+                );
                 return vec![];
             }
         };

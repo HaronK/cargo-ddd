@@ -83,7 +83,7 @@ impl CargoMeta {
             packages
         } else {
             eprintln!(
-                "Metadata is not resolved for: {}",
+                "[ERROR] Metadata is not resolved for: {}",
                 self.metadata.workspace_root
             );
             HashMap::default()
@@ -131,7 +131,7 @@ impl CargoMeta {
             packages
         } else {
             eprintln!(
-                "Metadata is not resolved for: {}",
+                "[ERROR] Metadata is not resolved for: {}",
                 self.metadata.workspace_root
             );
             vec![]
