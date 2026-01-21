@@ -5,6 +5,7 @@
 Fixed:
 - Properly extract crate version
 - Cache crates info
+- Remove branch from git repositories name
 
 ## 0.2.1
 
