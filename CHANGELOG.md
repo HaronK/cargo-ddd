@@ -4,6 +4,7 @@
 
 Fixed:
 - Properly extract crate version
+- Cache crates info
 
 ## 0.2.1
 

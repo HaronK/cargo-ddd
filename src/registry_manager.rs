@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
@@ -9,12 +10,17 @@ use crate::cargo_runner::CargoRunner;
 pub struct RegistryManager {
     /// Path to the current user cargo registry source folder
     registry_path: PathBuf,
+    /// Crates info cache
+    crate_info_cache: HashMap<String, (Option<Version>, Option<String>)>,
 }
 
 impl RegistryManager {
     pub fn new(registry_path: Option<PathBuf>) -> Result<Self> {
         if let Some(registry_path) = registry_path {
-            return Ok(Self { registry_path });
+            return Ok(Self {
+                registry_path,
+                crate_info_cache: HashMap::new(),
+            });
         }
 
         // Try to find registry path
@@ -62,6 +68,7 @@ impl RegistryManager {
                 }
                 Ok(Self {
                     registry_path: first.clone(),
+                    crate_info_cache: HashMap::new(),
                 })
             }
         }
@@ -133,16 +140,66 @@ impl RegistryManager {
     /// Extract crate version and repository from the output of the 'cargo info' command.
     /// This will automatically download crate and its sources into the local cargo registry.
     pub fn get_crate_info(
-        &self,
+        &mut self,
         crate_name: &str,
         version: Option<&Version>,
     ) -> (Option<Version>, Option<String>) {
-        let cargo_runner = CargoRunner::new(None);
-        let crate_desc = if let Some(version) = version {
+        let crate_desc = Self::get_crate_desc(crate_name, version);
+
+        if let Some(info) = self.crate_info_cache.get(&crate_desc) {
+            return info.clone();
+        }
+
+        self.extract_crate_info(crate_name, crate_desc, version)
+    }
+
+    /// Extract crate version from the output of the 'cargo info' command.
+    /// This will automatically download crate and its sources into the local cargo registry.
+    pub fn get_crate_version(
+        &mut self,
+        crate_name: &str,
+        version: Option<&Version>,
+    ) -> Option<Version> {
+        let crate_desc = Self::get_crate_desc(crate_name, version);
+
+        if let Some((version, _)) = self.crate_info_cache.get(&crate_desc) {
+            return version.clone();
+        }
+
+        self.extract_crate_info(crate_name, crate_desc, version).0
+    }
+
+    /// Extract crate repository from the output of the 'cargo info' command.
+    /// This will automatically download crate and its sources into the local cargo registry.
+    pub fn get_crate_repository(
+        &mut self,
+        crate_name: &str,
+        version: Option<&Version>,
+    ) -> Option<String> {
+        let crate_desc = Self::get_crate_desc(crate_name, version);
+
+        if let Some((_, repository)) = self.crate_info_cache.get(&crate_desc) {
+            return repository.clone();
+        }
+
+        self.extract_crate_info(crate_name, crate_desc, version).1
+    }
+
+    fn get_crate_desc(crate_name: &str, version: Option<&Version>) -> String {
+        if let Some(version) = version {
             format!("{crate_name}@{version}")
         } else {
             crate_name.into()
-        };
+        }
+    }
+
+    fn extract_crate_info(
+        &mut self,
+        crate_name: &str,
+        crate_desc: String,
+        version: Option<&Version>,
+    ) -> (Option<Version>, Option<String>) {
+        let cargo_runner = CargoRunner::new(None);
         let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
             Ok(output) => output,
             Err(err) => {
@@ -151,137 +208,56 @@ impl RegistryManager {
             }
         };
 
-        let version = output.lines().find_map(|l| {
-            l.strip_prefix("version: ").and_then(|version_desc| {
+        let version = Self::extract_version(crate_name, &output, version.is_none());
+        let repository = Self::repository_from_output(&output);
+        if repository.is_none() {
+            // TODO: Get repository in other way
+            eprintln!("Cannot get repository of the '{crate_name}' crate:\n{output}");
+        }
+
+        self.crate_info_cache
+            .insert(crate_desc, (version.clone(), repository.clone()));
+
+        (version, repository)
+    }
+
+    fn extract_version(crate_name: &str, output: &str, latest: bool) -> Option<Version> {
+        output.lines().find_map(|l| {
+            l.trim().strip_prefix("version: ").and_then(|version_desc| {
                 let version_str = if let Some((cur_version, latest_version)) =
-                    version_desc.split_once(" (latest ")
+                    version_desc.trim().split_once(" (latest ")
                 {
-                    let version_str = if version.is_some() {
-                        cur_version
-                    } else {
+                    if latest {
                         &latest_version[..latest_version.len() - 1]
-                    };
-                    let cargo_runner = CargoRunner::new(None);
-                    // load crate version into the local registry if it's not yet there
-                    if let Err(err) =
-                        cargo_runner.run("info", [format!("{crate_name}@{version_str}")])
-                    {
-                        eprintln!(
-                            "'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
-                        );
+                    } else {
+                        cur_version
                     }
-                    version_str
+                } else if let Some((cur_version, _)) = version_desc.split_once(" ") {
+                    cur_version
                 } else {
                     version_desc
                 };
+
+                // load crate version into the local registry if it's not yet there
+                let cargo_runner = CargoRunner::new(None);
+                if let Err(err) = cargo_runner.run("info", [format!("{crate_name}@{version_str}")])
+                {
+                    eprintln!(
+                        "'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
+                    );
+                }
 
                 match Version::parse(version_str) {
                     Ok(version) => Some(version),
                     Err(err) => {
                         eprintln!(
-                            "Cannot parse '{crate_name}' version '{version_str:?}'. Error: {err}"
+                            "Cannot parse '{crate_name}' version '{version_str}'. Error: {err}"
                         );
                         None
                     }
                 }
             })
-        });
-
-        let repository = Self::repository_from_output(&output);
-        if repository.is_none() {
-            // TODO: Get repository in other way
-            eprintln!("Cannot get repository of the '{crate_name}' crate:\n{output}");
-        }
-
-        (version, repository)
-    }
-
-    /// Extract crate version from the output of the 'cargo info' command.
-    /// This will automatically download crate and its sources into the local cargo registry.
-    pub fn get_crate_version(
-        &self,
-        crate_name: &str,
-        version: Option<&Version>,
-    ) -> Option<Version> {
-        let cargo_runner = CargoRunner::new(None);
-        let crate_desc = if let Some(version) = version {
-            format!("{crate_name}@{version}")
-        } else {
-            crate_name.into()
-        };
-        let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
-            Ok(output) => output,
-            Err(err) => {
-                eprintln!("'cargo info {crate_desc}' command failed. Error: {err}");
-                return version.cloned();
-            }
-        };
-
-        output.lines().find_map(|l| {
-            l.strip_prefix("version: ").and_then(|version_desc| {
-                let version_str = if let Some((cur_version, latest_version)) =
-                    version_desc.split_once(" (latest ")
-                {
-                    let version_str = if version.is_some() {
-                        cur_version
-                    } else {
-                        &latest_version[..latest_version.len() - 1]
-                    };
-                    let cargo_runner = CargoRunner::new(None);
-                    // load crate version into the local registry if it's not yet there
-                    if let Err(err) =
-                        cargo_runner.run("info", [format!("{crate_name}@{version_str}")])
-                    {
-                        eprintln!(
-                            "'cargo info {crate_name}@{version_str}' command failed. Error: {err}"
-                        );
-                    }
-                    version_str
-                } else {
-                    version_desc
-                };
-
-                match Version::parse(version_str) {
-                    Ok(version) => Some(version),
-                    Err(err) => {
-                        eprintln!(
-                            "Cannot parse '{crate_name}' version '{version_str:?}'. Error: {err}"
-                        );
-                        version.cloned()
-                    }
-                }
-            })
         })
-    }
-
-    /// Extract crate repository from the output of the 'cargo info' command.
-    /// This will automatically download crate and its sources into the local cargo registry.
-    pub fn get_crate_repository(
-        &self,
-        crate_name: &str,
-        version: Option<&Version>,
-    ) -> Option<String> {
-        let cargo_runner = CargoRunner::new(None);
-        let crate_desc = if let Some(version) = version {
-            format!("{crate_name}@{version}")
-        } else {
-            crate_name.into()
-        };
-        let output = match cargo_runner.run("info", ["--color", "never", &crate_desc]) {
-            Ok(output) => output,
-            Err(err) => {
-                eprintln!("Cannot get '{crate_name}' crate info. Error: {err}");
-                return None;
-            }
-        };
-        let repository = Self::repository_from_output(&output);
-
-        if repository.is_none() {
-            // TODO: Get repository in other way
-            eprintln!("Cannot get repository of the '{crate_name}' crate:\n{output}");
-        }
-
-        repository
     }
 
     fn repository_from_output(output: &str) -> Option<String> {

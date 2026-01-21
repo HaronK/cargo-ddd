@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 
     let registry_path = cargo_meta.as_ref().and_then(|cm| cm.registry_path());
     let registry_manager = RegistryManager::new(registry_path)?;
-    let diff_builder = CrateDiffBuilder::new(registry_manager, cli.diff_rs && !cli.verbose);
+    let mut diff_builder = CrateDiffBuilder::new(registry_manager, cli.diff_rs && !cli.verbose);
 
     let mut target_version_diffs = if cli.crates.is_empty() {
         // if no crates are provided in cli, use local crate dependencies that need an update

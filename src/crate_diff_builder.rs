@@ -24,7 +24,10 @@ impl CrateDiffBuilder {
     /// Build diffs for the dependencies of the current crate that require update.
     /// Called when no crates are provided in the command line:
     ///   ddd
-    pub fn build_from_crate(&self, cargo_meta: &CargoMeta) -> IndexMap<String, Vec<CrateDiffInfo>> {
+    pub fn build_from_crate(
+        &mut self,
+        cargo_meta: &CargoMeta,
+    ) -> IndexMap<String, Vec<CrateDiffInfo>> {
         let mut target_version_diffs = IndexMap::new();
         let dependencies = cargo_meta.workspace_member_dependencies();
 
@@ -90,7 +93,7 @@ impl CrateDiffBuilder {
     /// Called when crates are provided in the command line and they require current crate info:
     ///   ddd serde@-1.0.223
     pub fn build_from_crate_deps(
-        &self,
+        &mut self,
         crates: &[CrateDiffRequest],
         cargo_meta: &CargoMeta,
     ) -> IndexMap<String, Vec<CrateDiffInfo>> {
@@ -142,7 +145,7 @@ impl CrateDiffBuilder {
     /// Called when crates are provided in the command line and they don't require current crate info:
     ///   ddd serde@1.0.223-1.0.226
     pub fn build_from_crates(
-        &self,
+        &mut self,
         crates: &[CrateDiffRequest],
     ) -> IndexMap<String, Vec<CrateDiffInfo>> {
         let mut target_version_diffs = IndexMap::new();
@@ -175,7 +178,7 @@ impl CrateDiffBuilder {
     /// - added dependencies
     /// - updated dependencies
     pub fn build_nested_deps(
-        &self,
+        &mut self,
         diff: &CrateDiffInfo,
     ) -> (Vec<CrateDiffInfo>, Vec<CrateDiffInfo>, Vec<CrateDiffInfo>) {
         let from_nested_packages = self.get_nested_packages(&diff.name, diff.from_version.as_ref());
